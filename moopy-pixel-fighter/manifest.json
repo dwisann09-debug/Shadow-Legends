@@ -1,0 +1,11 @@
+{
+  "name": "Shadow Legends: 16-Bit Fighter",
+  "short_name": "ShadowLegends",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#090710",
+  "theme_color": "#f59e0b",
+  "icons": []
+}
