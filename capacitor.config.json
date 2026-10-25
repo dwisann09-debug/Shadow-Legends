@@ -3,17 +3,23 @@
   "appName": "Shadow Legends",
   "webDir": "www",
   "android": {
-    "buildOptions": {
-      "keystorePath": null,
-      "keystorePassword": null,
-      "keystoreAlias": null,
-      "keystoreAliasPassword": null,
-      "releaseType": "APK"
-    }
+    "backgroundColor": "#090710",
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 0
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#090710",
+      "androidSpinnerStyle": "small",
+      "iosSpinnerStyle": "small",
+      "spinnerColor": "#fbbf24",
+      "showSpinner": true,
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": true,
+      "splashImmersive": true
     }
   }
 }
