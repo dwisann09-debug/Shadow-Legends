@@ -218,6 +218,14 @@
       if (G.Camera) {
         G.Camera.shake = Math.min(7, Math.floor(finalDmg / 8) + 2);
       }
+      // HP bar shake
+      if (G.shakeHPBar) {
+        var targetIsPlayer = (G.Network && G.Network.gameMode === "multiplayer")
+          ? (d === G.moopy)
+          : (d !== G.dummy);
+        // d is G.moopy -> shake player1 bar; d is dummy/player2 -> shake AI bar
+        G.shakeHPBar(d === G.moopy);
+      }
     },
 
     applyDamageToDummy: function (dmg, knockX, knockY, color, moveLabel, isClawVisual) {

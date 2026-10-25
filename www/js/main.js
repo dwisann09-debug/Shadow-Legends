@@ -19,6 +19,12 @@ window.MoopyGame = window.MoopyGame || {};
   var gameOverActive = false;
   var isTouchDevice = false;
 
+  // ── Score & difficulty ────────────────────────────────────────────────────
+  var scoreP1 = 0;
+  var scoreAI = 0;
+  var aiDifficulty = "normal"; // "easy" | "normal" | "hard"
+  var roundAnnounce = { active: false, timer: 0, text: "", subtext: "" };
+
   var selectedCharId   = "moopy";
   var p2SelectedCharId = "moopy";   // karakter yang dipilih player 2
 
@@ -415,10 +421,42 @@ window.MoopyGame = window.MoopyGame || {};
     }
   });
 
+  // ── Difficulty setter (called from HTML onclick) ──────────────────────────
+  window.setDifficulty = function(level) {
+    aiDifficulty = level;
+    // Highlight active button
+    ["easy","normal","hard"].forEach(function(d){
+      var btn = document.getElementById("btnDiff" + d.charAt(0).toUpperCase() + d.slice(1));
+      if(!btn) return;
+      if(d === level){
+        btn.style.opacity = "1";
+        btn.style.boxShadow = "0 0 0 2px #fff4";
+      } else {
+        btn.style.opacity = "0.55";
+        btn.style.boxShadow = "";
+      }
+    });
+  };
+
+  // ── HP bar shake state ─────────────────────────────────────────────────────
+  var hpShakeP1 = 0; // frames remaining
+  var hpShakeAI = 0;
+
+  // Patch: expose shake triggers for fighter.js hit detection
+  G.shakeHPBar = function(isPlayer1) {
+    if(isPlayer1) hpShakeP1 = 14; else hpShakeAI = 14;
+  };
+
   function startFight(){
     charSelectOverlay.classList.add("hidden");
     G.gamePaused = false;
     G.Sound.init();
+
+    // Start BGM
+    G.Sound.startBGM();
+
+    // Read difficulty from button state (aiDifficulty already set by setDifficulty())
+    // aiDifficulty is already set via setDifficulty() onclick -- no need to re-read
 
     // Reset timer
     roundTimerSecs = 99;
@@ -426,6 +464,9 @@ window.MoopyGame = window.MoopyGame || {};
     gameOverActive = false;
     document.getElementById("timerDisplay").textContent = "99";
     document.getElementById("roundTimer").classList.remove("hidden");
+
+    // Round announce
+    roundAnnounce = { active: true, timer: 120, text: "ROUND 1", subtext: "FIGHT!" };
 
     // Deteksi touch device, tampilkan kontrol sentuh
     isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -438,8 +479,6 @@ window.MoopyGame = window.MoopyGame || {};
       document.getElementById("mpStatusRoom").textContent = "ROOM: " + G.Network.getRoomCode();
       document.getElementById("btnDisconnectMP").classList.remove("hidden");
       document.getElementById("pingBadge").classList.remove("hidden");
-
-      // Pasang hooks multiplayer
       hookMultiplayer();
     }
   }
@@ -473,9 +512,15 @@ window.MoopyGame = window.MoopyGame || {};
     if (gameOverActive) return;
     gameOverActive = true;
     G.gamePaused = true;
+    // Stop BGM, play outcome sound
+    G.Sound.stopBGM();
+    G.Sound.play(playerWon ? "win" : "gameover");
+    if (playerWon) scoreP1++; else scoreAI++;
+    updateScoreDisplay();
     var overlay = document.getElementById("gameOverOverlay");
     var title   = document.getElementById("gameOverTitle");
     var sub     = document.getElementById("gameOverSub");
+    var scoreEl = document.getElementById("gameOverScore");
     if (playerWon) {
       title.textContent = "MENANG!";
       title.className   = "font-pixel text-xl text-emerald-300 mb-1";
@@ -485,7 +530,13 @@ window.MoopyGame = window.MoopyGame || {};
       title.className   = "font-pixel text-xl text-rose-400 mb-1";
       sub.textContent   = reason || "Kamu dikalahkan!";
     }
+    if (scoreEl) scoreEl.textContent = "SKOR: " + scoreP1 + " - " + scoreAI;
     overlay.style.display = "flex";
+  }
+
+  function updateScoreDisplay() {
+    var el = document.getElementById("scoreDisplay");
+    if (el) el.textContent = scoreP1 + " - " + scoreAI;
   }
 
   function resetRound() {
@@ -516,6 +567,10 @@ window.MoopyGame = window.MoopyGame || {};
     document.getElementById("gameOverOverlay").style.display = "none";
     document.getElementById("timerDisplay").textContent = "99";
     G.Actions.updateModeBadge();
+    // Restart BGM
+    G.Sound.stopBGM();
+    G.Sound.startBGM();
+    roundAnnounce = { active: true, timer: 120, text: "ROUND", subtext: "FIGHT!" };
     G.gamePaused = false;
   }
 
@@ -1155,10 +1210,13 @@ window.MoopyGame = window.MoopyGame || {};
           // AI MENYERANG: spar / default
           var aiAttackRange = 52 * s;
           var aiChaseRange  = 200;
+          var aiSpeedMult   = aiDifficulty==="easy" ? 0.7 : (aiDifficulty==="hard" ? 1.4 : 1.0);
+          var aiAtkFreq     = aiDifficulty==="easy" ? 50  : (aiDifficulty==="hard" ? 18  : 28);
+          var aiDmgMult     = aiDifficulty==="easy" ? 0.6 : (aiDifficulty==="hard" ? 1.3 : 1.0);
 
           // Kejar player
           if(distToPlayer > aiAttackRange){
-            var aiSpeed = cfg.dummyBehavior === "spar" ? 1.6 : 1.2;
+            var aiSpeed = cfg.dummyBehavior === "spar" ? 1.6 * aiSpeedMult : 1.2 * aiSpeedMult;
             d.vx = d.facing === -1 ? -aiSpeed : aiSpeed;
             // Loncat kalau player jauh dan ai bisa
             if(d.onGround && d.aiTick % 90 === 0 && distToPlayer > 80){
@@ -1167,18 +1225,15 @@ window.MoopyGame = window.MoopyGame || {};
           } else {
             d.vx *= 0.6;
             // Serang saat dekat
-            if(d.onGround && d.aiTick % 28 === 0){
+            if(d.onGround && d.aiTick % aiAtkFreq === 0){
               var roll = Math.random();
               if(roll < 0.5){
-                // Basic punch
-                G.Actions.checkMeleeHit(60*s, 40*s, 12, d.facing*2.5, -1.8, "#f87171", "", false, d, m);
+                G.Actions.checkMeleeHit(60*s, 40*s, Math.round(12*aiDmgMult), d.facing*2.5, -1.8, "#f87171", "", false, d, m);
                 G.Sound.play("punch");
               } else if(roll < 0.75){
-                // Kick dengan knockback lebih besar
-                G.Actions.checkMeleeHit(55*s, 38*s, 18, d.facing*4.0, -2.5, "#fb923c", "", false, d, m);
+                G.Actions.checkMeleeHit(55*s, 38*s, Math.round(18*aiDmgMult), d.facing*4.0, -2.5, "#fb923c", "", false, d, m);
                 G.Sound.play("kick");
               } else {
-                // Dash ke arah player
                 d.vx = d.facing * 5.5;
                 d.state = "dash";
                 d.stateTimer = 10;
@@ -1188,7 +1243,7 @@ window.MoopyGame = window.MoopyGame || {};
           }
 
           // Loncat secara acak
-          if(d.onGround && d.aiTick % 120 === 0 && Math.random() < 0.35){
+          if(d.onGround && d.aiTick % 120 === 0 && Math.random() < (aiDifficulty==="hard" ? 0.5 : 0.3)){
             d.vy = -5.2; d.onGround = false;
           }
         }
@@ -1308,8 +1363,20 @@ window.MoopyGame = window.MoopyGame || {};
     var t   = G.Network.gameMode==="multiplayer" ? G.player2 : G.dummy;
     var W   = G.Config.BASE_W;
 
+    // HP bar shake
+    if(hpShakeP1 > 0) hpShakeP1--;
+    if(hpShakeAI > 0) hpShakeAI--;
+    var shakeOfsP1 = hpShakeP1 > 0 ? (Math.random()-0.5)*3 : 0;
+    var shakeOfsAI = hpShakeAI > 0 ? (Math.random()-0.5)*3 : 0;
+
+    ctx.save();
+    if(shakeOfsP1 !== 0) ctx.translate(shakeOfsP1, 0);
     drawHornedSkullHeartbar(8,8,m.hp/m.maxHp,m.displayHp/m.maxHp,false,m);
+    ctx.restore();
+    ctx.save();
+    if(shakeOfsAI !== 0) ctx.translate(shakeOfsAI, 0);
     drawHornedSkullHeartbar(W-228,8,t.hp/t.maxHp,t.displayHp/t.maxHp,true,t);
+    ctx.restore();
     drawModeLabel();
 
     // Timer di tengah atas HUD
@@ -1323,6 +1390,47 @@ window.MoopyGame = window.MoopyGame || {};
       ctx.fillStyle = tColor;
       ctx.fillText(roundTimerSecs, W/2, 14);
       ctx.restore();
+    }
+
+    // Nama pemain & skor
+    ctx.save();
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.textAlign = "left";
+    var p1Name = G.Network.gameMode==="multiplayer" ? G.Network.getLocalNickname() : (m.charId.toUpperCase());
+    ctx.fillStyle = "#00000088"; ctx.fillText(p1Name, 9+1, 29+1);
+    ctx.fillStyle = "#38bdf8";   ctx.fillText(p1Name, 9, 29);
+
+    var aiName = G.Network.gameMode==="multiplayer" ? G.Network.getRemoteNickname() : (G.dummy.charId ? G.dummy.charId.toUpperCase() : "CPU");
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#00000088"; ctx.fillText(aiName, W-9+1, 29+1);
+    ctx.fillStyle = "#f472b6";   ctx.fillText(aiName, W-9, 29);
+
+    // Skor (solo mode)
+    if (G.Network.gameMode !== "multiplayer") {
+      ctx.textAlign = "center";
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.fillStyle = "#00000088"; ctx.fillText(scoreP1 + "-" + scoreAI, W/2+1, 29+1);
+      ctx.fillStyle = "#facc15";   ctx.fillText(scoreP1 + "-" + scoreAI, W/2, 29);
+    }
+    ctx.restore();
+
+    // Round announcement overlay
+    if (roundAnnounce.active && roundAnnounce.timer > 0) {
+      roundAnnounce.timer--;
+      var alpha = roundAnnounce.timer > 90 ? 1.0 : roundAnnounce.timer / 90;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(0, G.Config.BASE_H/2 - 22, W, 44);
+      ctx.font = '14px "Press Start 2P", monospace';
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#000000"; ctx.fillText(roundAnnounce.text, W/2+2, G.Config.BASE_H/2 - 4+2);
+      ctx.fillStyle = "#fbbf24"; ctx.fillText(roundAnnounce.text, W/2, G.Config.BASE_H/2 - 4);
+      ctx.font = '10px "Press Start 2P", monospace';
+      ctx.fillStyle = "#000000"; ctx.fillText(roundAnnounce.subtext, W/2+1, G.Config.BASE_H/2 + 14+1);
+      ctx.fillStyle = "#f43f5e"; ctx.fillText(roundAnnounce.subtext, W/2, G.Config.BASE_H/2 + 14);
+      ctx.restore();
+      if (roundAnnounce.timer <= 0) roundAnnounce.active = false;
     }
 
     // Label nama pemain (multiplayer)
@@ -1446,6 +1554,7 @@ window.MoopyGame = window.MoopyGame || {};
   // ── Game Over buttons ─────────────────────────────────────────────────────
   document.getElementById("btnRematch").addEventListener("click", function(){ resetRound(); });
   document.getElementById("btnBackToMenu").addEventListener("click", function(){
+    G.Sound.stopBGM();
     document.getElementById("gameOverOverlay").style.display = "none";
     gameOverActive = false;
     document.getElementById("roundTimer").classList.add("hidden");
@@ -1525,6 +1634,19 @@ window.MoopyGame = window.MoopyGame || {};
     buildGothicStageCache();
     initFolderAssets();
     selectCharacter("moopy");
+
+    // Set default difficulty highlight
+    setDifficulty("normal");
+
+    // Android WebView: unlock audio on first touch/click
+    function unlockAudio(){
+      G.Sound.init();
+      document.removeEventListener("touchstart", unlockAudio);
+      document.removeEventListener("click", unlockAudio);
+    }
+    document.addEventListener("touchstart", unlockAudio, {once:true, passive:true});
+    document.addEventListener("click",      unlockAudio, {once:true});
+
     loop();
   };
 

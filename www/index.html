@@ -47,7 +47,8 @@
       <div id="gameOverOverlay" class="fixed lg:absolute inset-0 bg-black/90 z-50 hidden flex-col items-center justify-center text-center" style="display:none!important">
         <div class="pixel-box p-6 max-w-xs w-full border-4 border-amber-400 bg-[#140f26]/98">
           <div id="gameOverTitle" class="font-pixel text-xl text-amber-300 mb-1">MENANG!</div>
-          <div id="gameOverSub" class="font-pixel text-[8px] text-slate-400 mb-4">Kamu mengalahkan lawan</div>
+          <div id="gameOverSub" class="font-pixel text-[8px] text-slate-400 mb-2">Kamu mengalahkan lawan</div>
+          <div id="gameOverScore" class="font-pixel text-[9px] text-amber-300 mb-4">SKOR: 0 - 0</div>
           <button id="btnRematch" type="button" class="w-full pixel-btn pixel-btn-amber py-3 text-xs text-amber-100 mb-2">&#9654; REMATCH</button>
           <button id="btnBackToMenu" type="button" class="w-full pixel-btn py-2.5 text-[9px] text-slate-300">&#9664; MENU UTAMA</button>
         </div>
@@ -88,6 +89,16 @@
           <p class="font-vt text-lg sm:text-xl text-slate-300 mb-6">
             Moopy • Simon • Xeera • Violey
           </p>
+
+          <!-- Difficulty Selector -->
+          <div class="w-full mb-3">
+            <div class="font-pixel text-[7px] text-slate-400 mb-1.5 text-center">KESULITAN AI</div>
+            <div class="flex gap-1.5 justify-center">
+              <button id="btnDiffEasy" type="button" class="flex-1 pixel-btn py-2 text-[8px] text-emerald-200 border-emerald-500 bg-emerald-900/60" onclick="setDifficulty('easy')">MUDAH</button>
+              <button id="btnDiffNormal" type="button" class="flex-1 pixel-btn py-2 text-[8px] text-amber-200 border-amber-400 bg-amber-900/80" onclick="setDifficulty('normal')">NORMAL</button>
+              <button id="btnDiffHard" type="button" class="flex-1 pixel-btn py-2 text-[8px] text-rose-200 border-rose-600 bg-rose-900/40" onclick="setDifficulty('hard')">SUSAH</button>
+            </div>
+          </div>
 
           <button id="btnPlayNow" type="button" class="w-full pixel-btn pixel-btn-amber py-3.5 text-sm sm:text-base text-amber-100 mb-3">
             ▶ PLAY GAME (VS AI)
