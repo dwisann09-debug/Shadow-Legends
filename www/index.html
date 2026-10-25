@@ -38,6 +38,43 @@
         <span id="modeBadge" class="font-pixel text-[8px] px-2 py-1 bg-indigo-950/90 border border-indigo-400 text-indigo-200">MOOPY: STICKMAN</span>
       </div>
 
+      <!-- TIMER RONDE -->
+      <div id="roundTimer" class="absolute top-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none hidden">
+        <span id="timerDisplay" class="font-pixel text-sm text-amber-300 px-3 py-1 bg-black/70 border border-amber-400">99</span>
+      </div>
+
+      <!-- GAME OVER OVERLAY -->
+      <div id="gameOverOverlay" class="fixed lg:absolute inset-0 bg-black/90 z-50 hidden flex-col items-center justify-center text-center" style="display:none!important">
+        <div class="pixel-box p-6 max-w-xs w-full border-4 border-amber-400 bg-[#140f26]/98">
+          <div id="gameOverTitle" class="font-pixel text-xl text-amber-300 mb-1">MENANG!</div>
+          <div id="gameOverSub" class="font-pixel text-[8px] text-slate-400 mb-4">Kamu mengalahkan lawan</div>
+          <button id="btnRematch" type="button" class="w-full pixel-btn pixel-btn-amber py-3 text-xs text-amber-100 mb-2">&#9654; REMATCH</button>
+          <button id="btnBackToMenu" type="button" class="w-full pixel-btn py-2.5 text-[9px] text-slate-300">&#9664; MENU UTAMA</button>
+        </div>
+      </div>
+
+      <!-- TOUCH CONTROLS (tampil di layar sentuh) -->
+      <div id="touchControls" class="absolute inset-0 z-[25] pointer-events-none" style="display:none">
+        <!-- Joystick kiri -->
+        <div class="absolute bottom-3 left-3 flex gap-1.5 pointer-events-auto">
+          <button id="touchLeft" type="button" class="w-14 h-14 pixel-btn flex items-center justify-center text-xl text-amber-300 select-none">&#9664;</button>
+          <button id="touchRight" type="button" class="w-14 h-14 pixel-btn flex items-center justify-center text-xl text-amber-300 select-none">&#9654;</button>
+        </div>
+        <!-- Jump -->
+        <div class="absolute bottom-20 left-3 pointer-events-auto">
+          <button id="touchJump" type="button" class="w-14 h-14 pixel-btn pixel-btn-cyan flex items-center justify-center text-sm text-sky-200 select-none">JUMP</button>
+        </div>
+        <!-- Aksi kanan -->
+        <div class="absolute bottom-3 right-3 grid grid-cols-3 gap-1 pointer-events-auto">
+          <button id="touchJ" type="button" class="w-12 h-12 pixel-btn pixel-btn-cyan flex items-center justify-center text-xs text-cyan-200 select-none">ATK</button>
+          <button id="touchK" type="button" class="w-12 h-12 pixel-btn flex items-center justify-center text-xs text-emerald-300 border-emerald-400 select-none">KICK</button>
+          <button id="touchL" type="button" class="w-12 h-12 pixel-btn flex items-center justify-center text-xs text-violet-300 select-none">DASH</button>
+          <button id="touchP" type="button" class="w-12 h-12 pixel-btn pixel-btn-amber flex items-center justify-center text-xs text-amber-200 select-none">EVO</button>
+          <button id="touchU" type="button" class="w-12 h-12 pixel-btn flex items-center justify-center text-xs text-yellow-300 border-yellow-400 select-none">SKL1</button>
+          <button id="touchI" type="button" class="w-12 h-12 pixel-btn pixel-btn-crimson flex items-center justify-center text-xs text-rose-200 select-none">SKL2</button>
+        </div>
+      </div>
+
       <!-- =========================================================
            TAHAP 1: MENU PLAY (LAYAR PEMBUKA)
            ========================================================= -->

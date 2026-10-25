@@ -13,6 +13,12 @@ window.MoopyGame = window.MoopyGame || {};
   // Expose untuk network.js
   G.gamePaused = true;
 
+  // ── Round timer & game over state ─────────────────────────────────────────
+  var roundTimerSecs = 99;
+  var roundFrameCount = 0;
+  var gameOverActive = false;
+  var isTouchDevice = false;
+
   var selectedCharId   = "moopy";
   var p2SelectedCharId = "moopy";   // karakter yang dipilih player 2
 
@@ -414,6 +420,19 @@ window.MoopyGame = window.MoopyGame || {};
     G.gamePaused = false;
     G.Sound.init();
 
+    // Reset timer
+    roundTimerSecs = 99;
+    roundFrameCount = 0;
+    gameOverActive = false;
+    document.getElementById("timerDisplay").textContent = "99";
+    document.getElementById("roundTimer").classList.remove("hidden");
+
+    // Deteksi touch device, tampilkan kontrol sentuh
+    isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isTouchDevice) {
+      document.getElementById("touchControls").style.display = "block";
+    }
+
     if(G.Network.gameMode === "multiplayer"){
       document.getElementById("mpStatusBar").classList.remove("hidden");
       document.getElementById("mpStatusRoom").textContent = "ROOM: " + G.Network.getRoomCode();
@@ -447,6 +466,57 @@ window.MoopyGame = window.MoopyGame || {};
       };
       G.Network.onRemoteInput = null;
     }
+  }
+
+  // ── Game Over ─────────────────────────────────────────────────────────────
+  function showGameOver(playerWon, reason) {
+    if (gameOverActive) return;
+    gameOverActive = true;
+    G.gamePaused = true;
+    var overlay = document.getElementById("gameOverOverlay");
+    var title   = document.getElementById("gameOverTitle");
+    var sub     = document.getElementById("gameOverSub");
+    if (playerWon) {
+      title.textContent = "MENANG!";
+      title.className   = "font-pixel text-xl text-emerald-300 mb-1";
+      sub.textContent   = reason || "Lawan dikalahkan!";
+    } else {
+      title.textContent = "KALAH!";
+      title.className   = "font-pixel text-xl text-rose-400 mb-1";
+      sub.textContent   = reason || "Kamu dikalahkan!";
+    }
+    overlay.style.display = "flex";
+  }
+
+  function resetRound() {
+    var m = G.moopy;
+    var d = G.dummy;
+    m.x=130; m.y=G.Config.GROUND_Y; m.vx=0; m.vy=0; m.onGround=true; m.jumpsUsed=0;
+    m.state="idle"; m.stateTimer=0; m.attackType="";
+    m.blitzRemaining=0; m.blitzTimer=0; m.stormTimer=0;
+    m.comboStep=0; m.comboWindow=0; m.comboCount=0; m.comboResetTimer=0;
+    m.hp=m.maxHp; m.displayHp=m.maxHp;
+    m.dashCharges=m.maxDashCharges;
+    m.evoTimer=0; m.isWolf=false; m.energy=0;
+    m.cd.dash=0; m.cd.wolf=0; m.cd.roar=0; m.cd.laser=0;
+    if (G.Network.gameMode === "multiplayer") {
+      var p2 = G.player2;
+      p2.x=335; p2.y=G.Config.GROUND_Y; p2.vx=0; p2.vy=0; p2.onGround=true;
+      p2.hp=p2.maxHp; p2.displayHp=p2.maxHp; p2.stunTimer=0;
+    } else {
+      d.x=335; d.y=G.Config.GROUND_Y; d.vx=0; d.vy=0; d.onGround=true;
+      d.hp=d.maxHp; d.displayHp=d.maxHp; d.stunTimer=0; d.koResetTimer=0; d.aiTick=0;
+    }
+    G.FX.slashBarriers.length=0; G.FX.windSlashes.length=0; G.FX.giantCleaves.length=0;
+    G.FX.feralArcs.length=0; G.FX.ribbonVortices.length=0; G.FX.xCrossClaws.length=0;
+    G.FX.feralSpeedLines.length=0; G.FX.roarWaves.length=0;
+    if(G.FX.violeyProjectiles) G.FX.violeyProjectiles.length=0;
+    if(G.FX.violeySmokes) G.FX.violeySmokes.length=0;
+    roundTimerSecs=99; roundFrameCount=0; gameOverActive=false;
+    document.getElementById("gameOverOverlay").style.display = "none";
+    document.getElementById("timerDisplay").textContent = "99";
+    G.Actions.updateModeBadge();
+    G.gamePaused = false;
   }
 
   function handleFullState(data){
@@ -587,6 +657,36 @@ window.MoopyGame = window.MoopyGame || {};
 
     // Tentukan "target" (siapa yang diserang oleh moopy)
     var target = isMP ? G.player2 : G.dummy;
+
+    // ── Round timer ───────────────────────────────────────────────────────
+    if (!gameOverActive) {
+      roundFrameCount++;
+      if (roundFrameCount >= 60) {
+        roundFrameCount = 0;
+        roundTimerSecs = Math.max(0, roundTimerSecs - 1);
+        var tDisp = document.getElementById("timerDisplay");
+        if (tDisp) {
+          tDisp.textContent = roundTimerSecs;
+          tDisp.style.color = roundTimerSecs <= 10 ? "#f43f5e" : "#fbbf24";
+        }
+        if (roundTimerSecs <= 0) {
+          // Waktu habis: siapa HP lebih tinggi menang
+          if (m.hp > target.hp) showGameOver(true, "Waktu habis - HP lebih tinggi!");
+          else if (target.hp > m.hp) showGameOver(false, "Waktu habis - HP lawan lebih tinggi!");
+          else showGameOver(true, "Waktu habis - SERI!");
+          return;
+        }
+      }
+      // Cek KO
+      if (!isMP && target.hp <= 0 && !gameOverActive) {
+        showGameOver(true, "KO! Lawan dikalahkan!");
+        return;
+      }
+      if (m.hp <= 0 && !gameOverActive) {
+        showGameOver(false, "KO! Kamu dikalahkan!");
+        return;
+      }
+    }
 
     m.animTick++;
     if(m.isWolf) m.wolfAuraTimer++;
@@ -1033,20 +1133,68 @@ window.MoopyGame = window.MoopyGame || {};
         G.Network.sendInputState({ a: keys.a, s: keys.s });
       }
     } else {
-      // ── Single player: update dummy AI ─────────────────────────────────
+      // ── Single player: update dummy AI (SMART) ──────────────────────────
       var d = G.dummy;
       d.displayHp += (d.hp - d.displayHp) * 0.15;
 
-      if(d.stunTimer<=0&&d.hurtTimer<=0&&d.hp>0){
-        d.aiTick++; d.facing=m.x<d.x?-1:1;
-        if(cfg.dummyBehavior==="patrol"){ d.vx=d.patrolDir*1.25; if(d.x<90)d.patrolDir=1; if(d.x>cfg.BASE_W-70)d.patrolDir=-1; }
-        else if(cfg.dummyBehavior==="jump"){ if(d.onGround&&d.aiTick%55===0){d.vy=-5.8;d.onGround=false;} }
-        else if(cfg.dummyBehavior==="spar"){
-          var distTM=d.x-m.x;
-          if(Math.abs(distTM)>42) d.vx=distTM>0?-1.4:1.4;
-          else if(d.aiTick%45===0){ m.hp=Math.max(100,m.hp-8); G.FX.spawnDamageNumber(m.x,m.y-20,8,"#f87171"); }
-        } else { d.vx*=0.8; }
-      } else { d.vx*=0.84; }
+      if(d.stunTimer<=0 && d.hurtTimer<=0 && d.hp>0){
+        d.aiTick++;
+        d.facing = m.x < d.x ? -1 : 1;
+        var distToPlayer = Math.abs(d.x - m.x);
+
+        if(cfg.dummyBehavior === "static"){
+          d.vx *= 0.8;
+        } else if(cfg.dummyBehavior === "patrol"){
+          d.vx = d.patrolDir * 1.25;
+          if(d.x < 90) d.patrolDir = 1;
+          if(d.x > cfg.BASE_W - 70) d.patrolDir = -1;
+        } else if(cfg.dummyBehavior === "jump"){
+          if(d.onGround && d.aiTick % 55 === 0){ d.vy = -5.8; d.onGround = false; }
+          d.vx *= 0.8;
+        } else {
+          // AI MENYERANG: spar / default
+          var aiAttackRange = 52 * s;
+          var aiChaseRange  = 200;
+
+          // Kejar player
+          if(distToPlayer > aiAttackRange){
+            var aiSpeed = cfg.dummyBehavior === "spar" ? 1.6 : 1.2;
+            d.vx = d.facing === -1 ? -aiSpeed : aiSpeed;
+            // Loncat kalau player jauh dan ai bisa
+            if(d.onGround && d.aiTick % 90 === 0 && distToPlayer > 80){
+              d.vy = -5.5; d.onGround = false;
+            }
+          } else {
+            d.vx *= 0.6;
+            // Serang saat dekat
+            if(d.onGround && d.aiTick % 28 === 0){
+              var roll = Math.random();
+              if(roll < 0.5){
+                // Basic punch
+                G.Actions.checkMeleeHit(60*s, 40*s, 12, d.facing*2.5, -1.8, "#f87171", "", false, d, m);
+                G.Sound.play("punch");
+              } else if(roll < 0.75){
+                // Kick dengan knockback lebih besar
+                G.Actions.checkMeleeHit(55*s, 38*s, 18, d.facing*4.0, -2.5, "#fb923c", "", false, d, m);
+                G.Sound.play("kick");
+              } else {
+                // Dash ke arah player
+                d.vx = d.facing * 5.5;
+                d.state = "dash";
+                d.stateTimer = 10;
+                G.Sound.play("dash");
+              }
+            }
+          }
+
+          // Loncat secara acak
+          if(d.onGround && d.aiTick % 120 === 0 && Math.random() < 0.35){
+            d.vy = -5.2; d.onGround = false;
+          }
+        }
+      } else {
+        d.vx *= 0.84;
+      }
 
       if(d.hitFlash>0)  d.hitFlash--;
       if(d.hurtTimer>0) d.hurtTimer--;
@@ -1163,6 +1311,19 @@ window.MoopyGame = window.MoopyGame || {};
     drawHornedSkullHeartbar(8,8,m.hp/m.maxHp,m.displayHp/m.maxHp,false,m);
     drawHornedSkullHeartbar(W-228,8,t.hp/t.maxHp,t.displayHp/t.maxHp,true,t);
     drawModeLabel();
+
+    // Timer di tengah atas HUD
+    if (!gameOverActive) {
+      ctx.save();
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = "center";
+      var tColor = roundTimerSecs <= 10 ? "#f43f5e" : "#fbbf24";
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(W/2-14, 4, 28, 14);
+      ctx.fillStyle = tColor;
+      ctx.fillText(roundTimerSecs, W/2, 14);
+      ctx.restore();
+    }
 
     // Label nama pemain (multiplayer)
     if(G.Network.gameMode==="multiplayer"){
@@ -1281,6 +1442,35 @@ window.MoopyGame = window.MoopyGame || {};
     G.Actions.updateModeBadge();
     mainMenuOverlay.classList.add("hidden"); G.gamePaused=false;
   });
+
+  // ── Game Over buttons ─────────────────────────────────────────────────────
+  document.getElementById("btnRematch").addEventListener("click", function(){ resetRound(); });
+  document.getElementById("btnBackToMenu").addEventListener("click", function(){
+    document.getElementById("gameOverOverlay").style.display = "none";
+    gameOverActive = false;
+    document.getElementById("roundTimer").classList.add("hidden");
+    document.getElementById("touchControls").style.display = "none";
+    startPlayOverlay.classList.remove("hidden");
+    G.gamePaused = true;
+  });
+
+  // ── Touch controls binding ────────────────────────────────────────────────
+  function bindTouch(id, keyName, isMove){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("touchstart", function(e){ e.preventDefault(); handleKeyDown(keyName); }, {passive:false});
+    el.addEventListener("touchend",   function(e){ e.preventDefault(); handleKeyUp(keyName);   }, {passive:false});
+    el.addEventListener("touchcancel",function(e){ e.preventDefault(); handleKeyUp(keyName);   }, {passive:false});
+  }
+  bindTouch("touchLeft",  "a");
+  bindTouch("touchRight", "s");
+  bindTouch("touchJump",  "w");
+  bindTouch("touchJ",     "j");
+  bindTouch("touchK",     "k");
+  bindTouch("touchL",     "l");
+  bindTouch("touchP",     "p");
+  bindTouch("touchU",     "u");
+  bindTouch("touchI",     "i");
 
   // ── Asset upload bindings ─────────────────────────────────────────────────
   function bindUpload(inputId,statusId,assetKey){
