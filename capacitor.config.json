@@ -1,0 +1,19 @@
+{
+  "appId": "com.shadowlegends.game",
+  "appName": "Shadow Legends",
+  "webDir": "www",
+  "android": {
+    "buildOptions": {
+      "keystorePath": null,
+      "keystorePassword": null,
+      "keystoreAlias": null,
+      "keystoreAliasPassword": null,
+      "releaseType": "APK"
+    }
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}
