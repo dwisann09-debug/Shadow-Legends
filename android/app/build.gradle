@@ -24,7 +24,7 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "Shadow-Legend-${variant.buildType.name}.apk"
+            outputFileName = "Shadow Legend.apk"
         }
     }
 }
