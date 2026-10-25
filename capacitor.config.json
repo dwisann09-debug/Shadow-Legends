@@ -1,6 +1,6 @@
 {
   "appId": "com.shadowlegends.game",
-  "appName": "Shadow Legends",
+  "appName": "Shadow Legend",
   "webDir": "www",
   "android": {
     "backgroundColor": "#090710",

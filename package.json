@@ -1,7 +1,7 @@
 {
   "name": "shadow-legends",
   "version": "1.0.0",
-  "description": "Shadow Legends - 16-bit fighting game",
+  "description": "Shadow Legend - 16-bit fighting game",
   "main": "index.js",
   "scripts": {
     "build:android": "npx cap sync android && npx cap open android"
